@@ -96,12 +96,9 @@ def generate_weather_report(zip_code: str, reference_temp: float) -> str:
         df['hour'] = 12  # default midday hour for daily
 
     df['temp_f'] = df['temp'] * 9/5 + 32
-    df = df[df['temp_f'].notna()]
-
-    # === CALCULATE HOURLY TEMP IN F ===
-    df['temp_f'] = df['temp'] * 9/5 + 32
-
-    # Drop rows with missing temperature data
+    # Add wind speed and direction columns for later use
+    df['wspd'] = df['wspd']  # wind speed in km/h
+    df['wdir'] = df['wdir']  # wind direction in degrees
     df = df[df['temp_f'].notna()]
 
     # === ANALYTICS ===
@@ -382,6 +379,34 @@ def generate_weather_report(zip_code: str, reference_temp: float) -> str:
     for idx, row in top_10_coldest.iterrows():
         date_str = row[datetime_col].strftime('%Y-%m-%d %H:%M') if pd.notna(row[datetime_col]) else ""
         extreme_ws.append([date_str, round(row['temp_f'], 2)])
+
+    # Add worksheet for wind on hottest days
+    wind_hot_ws = wb.create_sheet(title="Wind on Hottest Days")
+    wind_hot_ws.append(["Date", "Temperature (F)", "Wind Speed (km/h)", "Wind Direction (°)"])
+    for row in top_10_hottest.itertuples(index=False):
+        date_str = row[datetime_col].strftime('%Y-%m-%d %H:%M') if pd.notna(row[datetime_col]) else ""
+        wind_hot_ws.append([date_str, round(row.temp_f, 2), row.wspd, row.wdir])
+
+
+    # === WIND ROSE PLOT AND SHEET ===
+    from windrose import WindroseAxes
+    import matplotlib.pyplot as plt
+    from openpyxl.drawing.image import Image as ExcelImage
+
+    wind_df = df[['wspd', 'wdir']].dropna()
+
+    fig = plt.figure(figsize=(6, 6))
+    ax = WindroseAxes.from_ax(fig=fig)
+    ax.bar(wind_df['wdir'], wind_df['wspd'], normed=True, opening=0.8, edgecolor='white')
+    ax.set_legend()
+    wind_rose_path = "wind_rose.png"
+    plt.savefig(wind_rose_path)
+    plt.close(fig)
+
+    wind_ws = wb.create_sheet(title="Wind Rose")
+    img = ExcelImage(wind_rose_path)
+    img.anchor = 'A1'
+    wind_ws.add_image(img)
 
     # === SAVE FILE ===
     output_file = f"weather_summary_{location_name}.xlsx"

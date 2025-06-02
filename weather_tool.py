@@ -9,12 +9,11 @@ def generate_weather_report(zip_code: str, reference_temp: float) -> str:
     import matplotlib.pyplot as plt
     import os
     from geopy.geocoders import Nominatim
-    import openai
     import os
     from dotenv import load_dotenv
     load_dotenv()
 
-    openai.api_key = os.getenv("OPENAI_API_KEY")
+
 
     # === USER INPUTS ===
     use_zip = True  # Always True in function context, using zip_code parameter
